@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fruit Matching Game - Kelas 2 SD</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Fredoka untuk tampilan ramah anak -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti untuk efek kemenangan -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Fredoka', cursive, sans-serif;
+            background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
+        }
+        .btn-bounce {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .btn-bounce:active {
+            transform: scale(0.95);
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+        }
+        @keyframes pulse-timer {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .timer-warning {
+            animation: pulse-timer 0.5s infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- Kontainer Utama Game -->
+    <div class="w-full max-w-2xl bg-white rounded-3xl card-shadow overflow-hidden border-4 border-yellow-300 relative">
+        
+        <!-- HEADER UTAMA -->
+        <div class="bg-yellow-400 p-4 text-center border-b-4 border-yellow-500 relative">
+            <h1 class="text-3xl md:text-4xl font-bold text-green-800 drop-shadow-sm">🍎 Fruit Fun Matching! 🍇</h1>
+            <p class="text-sm md:text-base font-semibold text-green-900 mt-1">Bahasa Inggris Kelas 2 SD</p>
+        </div>
+
+        <!-- HLAMAM 1: REGISTRASI & PILIH MODE -->
+        <div id="start-screen" class="p-6 md:p-8 text-center space-y-6">
+            <div class="bg-green-50 p-4 rounded-2xl border-2 border-green-200">
+                <h2 class="text-xl font-bold text-green-700 mb-2">Selamat Datang, Little Learners! 👋</h2>
+                <p class="text-gray-600 text-sm md:text-base">Tebak nama buah dalam Bahasa Inggris! Kamu punya <b>10 detik</b> untuk setiap soal.</p>
+            </div>
+
+            <!-- Form Pemain -->
+            <div class="space-y-4 text-left">
+                <div>
+                    <label class="block text-gray-700 font-bold mb-1">Tipe Pemain:</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button type="button" id="btn-mode-single" onclick="selectPlayerMode('individu')" class="py-2 px-4 rounded-xl font-bold border-2 border-green-500 bg-green-500 text-white shadow-md transition">👤 Individu</button>
+                        <button type="button" id="btn-mode-group" onclick="selectPlayerMode('kelompok')" class="py-2 px-4 rounded-xl font-bold border-2 border-gray-300 bg-gray-100 text-gray-600 shadow-md transition">👥 Kelompok</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label id="label-name" class="block text-gray-700 font-bold mb-1">Nama Siswa:</label>
+                    <input type="text" id="player-name" placeholder="Masukkan nama..." class="w-full px-4 py-3 rounded-xl border-2 border-yellow-400 focus:outline-none focus:ring-2 focus:ring-yellow-500 font-bold text-lg text-gray-700">
+                </div>
+            </div>
+
+            <!-- Tombol Mulai & Papan Skor -->
+            <div class="flex flex-col md:flex-row gap-3 pt-2">
+                <button onclick="startGame()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold text-xl py-3 px-6 rounded-2xl btn-bounce shadow-lg border-b-4 border-green-700">
+                    🚀 Mulai Game!
+                </button>
+                <button onclick="showLeaderboard()" class="bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg py-3 px-5 rounded-2xl btn-bounce shadow-lg border-b-4 border-blue-700">
+                    🏆 Papan Skor
+                </button>
+            </div>
+        </div>
+
+        <!-- HALAMAN 2: ARENA GAME -->
+        <div id="game-screen" class="p-6 md:p-8 hidden">
+            <!-- Info Bar (Soal, Skor, Timer) -->
+            <div class="flex justify-between items-center bg-yellow-100 p-3 rounded-2xl border-2 border-yellow-300 mb-6">
+                <div>
+                    <span class="text-xs text-gray-500 uppercase font-bold block">Soal</span>
+                    <span id="question-number" class="text-xl font-bold text-green-700">1 / 20</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-500 uppercase font-bold block">Pemain</span>
+                    <span id="current-player-display" class="text-lg font-bold text-purple-700">Budi</span>
+                </div>
+                <div>
+                    <span class="text-xs text-gray-500 uppercase font-bold block">Skor</span>
+                    <span id="current-score" class="text-xl font-bold text-yellow-600">0</span>
+                </div>
+            </div>
+
+            <!-- Timer Progress Bar -->
+            <div class="mb-6">
+                <div class="flex justify-between text-sm font-bold text-gray-600 mb-1">
+                    <span>⏱️ Waktu:</span>
+                    <span id="timer-text" class="text-red-500 font-bold">10 Detik</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-4 overflow-hidden border border-gray-300">
+                    <div id="timer-bar" class="bg-red-500 h-full w-full transition-all duration-1000 ease-linear"></div>
+                </div>
+            </div>
+
+            <!-- Card Pertanyaan -->
+            <div class="text-center bg-gradient-to-b from-green-50 to-emerald-100 p-6 rounded-3xl border-2 border-green-300 mb-6 relative">
+                <span class="text-xs font-bold bg-green-200 text-green-800 px-3 py-1 rounded-full uppercase">Pilih Nama Buah yang Sesuai</span>
+                
+                <!-- Gambar/Emoji Buah Besar -->
+                <div id="fruit-emoji" class="text-8xl my-4 select-none filter drop-shadow-md transform hover:scale-110 transition cursor-pointer" onclick="speakFruitName()" title="Klik untuk mendengar suara">
+                    🍎
+                </div>
+
+                <button onclick="speakFruitName()" class="bg-white/80 hover:bg-white text-green-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-green-300 inline-flex items-center gap-1 shadow-sm">
+                    🔊 Dengarkan Pengucapan
+                </button>
+            </div>
+
+            <!-- Pilihan Jawaban (Matching Options) -->
+            <div id="options-container" class="grid grid-cols-2 gap-3 md:gap-4">
+                <!-- Tombol pilihan akan dirender melalui JavaScript -->
+            </div>
+        </div>
+
+        <!-- HALAMAN 3: HASIL GAME -->
+        <div id="result-screen" class="p-6 md:p-8 text-center space-y-6 hidden">
+            <div class="text-6xl animate-bounce">🎉</div>
+            <h2 class="text-3xl font-bold text-green-700">Hore! Selesai!</h2>
+            <p class="text-gray-600 font-semibold">Hasil untuk <span id="result-player-name" class="text-purple-600 font-bold"></span></p>
+
+            <!-- Card Detail Hasil -->
+            <div class="bg-yellow-50 p-6 rounded-3xl border-2 border-yellow-300 space-y-3">
+                <div class="flex justify-between items-center text-lg border-b border-yellow-200 pb-2">
+                    <span class="text-gray-600 font-semibold">Jawaban Benar:</span>
+                    <span id="result-correct" class="font-bold text-green-600 text-xl">0 / 20</span>
+                </div>
+                <div class="flex justify-between items-center text-lg">
+                    <span class="text-gray-600 font-semibold">Total Skor Akhir:</span>
+                    <span id="result-score" class="font-bold text-yellow-600 text-3xl">0</span>
+                </div>
+            </div>
+
+            <!-- Navigasi Hasil -->
+            <div class="flex flex-col md:flex-row gap-3">
+                <button onclick="resetGameToStart()" class="flex-1 bg-green-500 hover:bg-green-600 text-white font-bold text-lg py-3 px-4 rounded-2xl btn-bounce shadow-md">
+                    🔄 Main Lagi
+                </button>
+                <button onclick="showLeaderboard()" class="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-bold text-lg py-3 px-4 rounded-2xl btn-bounce shadow-md">
+                    🏆 Lihat Papan Skor
+                </button>
+            </div>
+        </div>
+
+        <!-- HALAMAN 4: PAPAN SKOR / LEADERBOARD -->
+        <div id="leaderboard-screen" class="p-6 md:p-8 hidden">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">🏆 Papan Skor Terbaik</h2>
+                <button onclick="backToStart()" class="text-gray-500 hover:text-gray-800 font-bold text-sm bg-gray-100 px-3 py-1 rounded-xl">
+                    ⬅️ Kembali
+                </button>
+            </div>
+
+            <!-- Tab Filter (Individu vs Kelompok) -->
+            <div class="flex gap-2 mb-4">
+                <button id="tab-ind" onclick="filterLeaderboard('individu')" class="flex-1 py-2 rounded-xl font-bold border-2 border-green-500 bg-green-500 text-white">👤 Individu</button>
+                <button id="tab-kel" onclick="filterLeaderboard('kelompok')" class="flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-100 text-gray-600">👥 Kelompok</button>
+            </div>
+
+            <!-- Daftar Skor -->
+            <div class="bg-gray-50 rounded-2xl border-2 border-gray-200 p-3 max-h-64 overflow-y-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="border-b-2 border-gray-300 text-xs text-gray-500 uppercase">
+                            <th class="pb-2">Peringkat</th>
+                            <th class="pb-2">Nama</th>
+                            <th class="pb-2 text-center">Benar</th>
+                            <th class="pb-2 text-right">Skor</th>
+                        </tr>
+                    </thead>
+                    <tbody id="leaderboard-body" class="divide-y divide-gray-200 text-sm font-semibold text-gray-700">
+                        <!-- Item Papan Skor dirender via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-6 flex justify-between items-center">
+                <button onclick="clearLeaderboard()" class="text-red-500 hover:text-red-700 text-xs font-bold underline">
+                    Hapus Papan Skor
+                </button>
+                <button onclick="resetGameToStart()" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-6 rounded-xl btn-bounce">
+                    🎮 Main Game
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- SCRIPT LOGIKA GAME -->
+    <script>
+        // Data 20 Buah untuk Materi Kelas 2 SD
+        const FRUITS_DATA = [
+            { id: 1, name: "Apple", translation: "Apel", emoji: "🍎" },
+            { id: 2, name: "Banana", translation: "Pisang", emoji: "🍌" },
+            { id: 3, name: "Orange", translation: "Jeruk", emoji: "🍊" },
+            { id: 4, name: "Strawberry", translation: "Stroberi", emoji: "🍓" },
+            { id: 5, name: "Grape", translation: "Anggur", emoji: "🍇" },
+            { id: 6, name: "Watermelon", translation: "Semangka", emoji: "🍉" },
+            { id: 7, name: "Pineapple", translation: "Nanas", emoji: "🍍" },
+            { id: 8, name: "Mango", translation: "Mangga", emoji: "🥭" },
+            { id: 9, name: "Lemon", translation: "Lemon", emoji: "🍋" },
+            { id: 10, name: "Cherry", translation: "Ceri", emoji: "🍒" },
+            { id: 11, name: "Peach", translation: "Persik", emoji: "🍑" },
+            { id: 12, name: "Pear", translation: "Pir", emoji: "🍐" },
+            { id: 13, name: "Coconut", translation: "Kelapa", emoji: "🥥" },
+            { id: 14, name: "Avocado", translation: "Alpukat", emoji: "🥑" },
+            { id: 15, name: "Kiwi", translation: "Kiwi", emoji: "🥝" },
+            { id: 16, name: "Melon", translation: "Melon", emoji: "🍈" },
+            { id: 17, name: "Blueberry", translation: "Bluberi", emoji: "🫐" },
+            { id: 18, name: "Green Apple", translation: "Apel Hijau", emoji: "🍏" },
+            { id: 19, name: "Tomato", translation: "Tomat", emoji: "🍅" },
+            { id: 20, name: "Papaya", translation: "Pepaya", emoji: "🥭" }
+        ];
+
+        // State Aplikasi
+        let currentMode = 'individu'; // 'individu' atau 'kelompok'
+        let playerName = '';
+        let currentQuestionIndex = 0;
+        let score = 0;
+        let correctCount = 0;
+        let timer = null;
+        let timeLeft = 10;
+        let questions = [];
+        let leaderboardData = [];
+        let currentLeaderboardTab = 'individu';
+
+        // Load awal saat halaman dibuka
+        window.onload = function() {
+            // Mengambil skor lama jika disimpan di memori sesi browser
+            const savedData = localStorage.getItem('fruit_game_scores');
+            if (savedData) {
+                try { leaderboardData = JSON.parse(savedData); } catch(e) { leaderboardData = []; }
+            }
+        };
+
+        // Memilih Mode Pemain (Individu vs Kelompok)
+        function selectPlayerMode(mode) {
+            currentMode = mode;
+            const btnSingle = document.getElementById('btn-mode-single');
+            const btnGroup = document.getElementById('btn-mode-group');
+            const labelName = document.getElementById('label-name');
+
+            if (mode === 'individu') {
+                btnSingle.className = "py-2 px-4 rounded-xl font-bold border-2 border-green-500 bg-green-500 text-white shadow-md transition";
+                btnGroup.className = "py-2 px-4 rounded-xl font-bold border-2 border-gray-300 bg-gray-100 text-gray-600 shadow-md transition";
+                labelName.textContent = "Nama Siswa:";
+            } else {
+                btnGroup.className = "py-2 px-4 rounded-xl font-bold border-2 border-purple-500 bg-purple-500 text-white shadow-md transition";
+                btnSingle.className = "py-2 px-4 rounded-xl font-bold border-2 border-gray-300 bg-gray-100 text-gray-600 shadow-md transition";
+                labelName.textContent = "Nama Kelompok (contoh: Kelompok Lion):";
+            }
+        }
+
+        // Acak Urutan Array (Fisher-Yates Shuffle)
+        function shuffleArray(array) {
+            let arr = [...array];
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr;
+        }
+
+        // Memulai Game
+        function startGame() {
+            const inputName = document.getElementById('player-name').value.trim();
+            if (!inputName) {
+                // Menampilkan Modal custom sederhana sebagai pengganti alert()
+                alertCustom("Mohon masukkan Nama Siswa atau Nama Kelompok dulu ya! 😊");
+                return;
+            }
+
+            playerName = inputName;
+            currentQuestionIndex = 0;
+            score = 0;
+            correctCount = 0;
+            
+            // Acak 20 soal dari data
+            questions = shuffleArray(FRUITS_DATA);
+
+            // Tampilkan Layar Game
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.remove('hidden');
+
+            document.getElementById('current-player-display').textContent = playerName;
+
+            loadQuestion();
+        }
+
+        // Memuat Pertanyaan Berdasarkan Index
+        function loadQuestion() {
+            if (currentQuestionIndex >= questions.length) {
+                endGame();
+                return;
+            }
+
+            // Update UI Info
+            document.getElementById('question-number').textContent = `${currentQuestionIndex + 1} / ${questions.length}`;
+            document.getElementById('current-score').textContent = score;
+
+            const currentFruit = questions[currentQuestionIndex];
+            document.getElementById('fruit-emoji').textContent = currentFruit.emoji;
+
+            // Ucapkan otomatis nama buahnya
+            setTimeout(() => { speakFruitName(); }, 300);
+
+            // Buat 4 Pilihan Jawaban (1 Benar, 3 Salah)
+            let options = [currentFruit];
+            let otherFruits = FRUITS_DATA.filter(f => f.id !== currentFruit.id);
+            otherFruits = shuffleArray(otherFruits);
+
+            for (let i = 0; i < 3; i++) {
+                options.push(otherFruits[i]);
+            }
+            options = shuffleArray(options);
+
+            // Render Tombol Pilihan Jawaban
+            const container = document.getElementById('options-container');
+            container.innerHTML = '';
+
+            const colors = [
+                'bg-blue-500 hover:bg-blue-600 border-blue-700',
+                'bg-purple-500 hover:bg-purple-600 border-purple-700',
+                'bg-pink-500 hover:bg-pink-600 border-pink-700',
+                'bg-amber-500 hover:bg-amber-600 border-amber-700'
+            ];
+
+            options.forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = `${colors[idx % colors.length]} text-white font-bold text-lg md:text-xl py-4 px-3 rounded-2xl border-b-4 shadow-md btn-bounce transition flex flex-col items-center justify-center gap-1`;
+                btn.innerHTML = `
+                    <span>${opt.name}</span>
+                    <span class="text-xs font-normal opacity-90">(${opt.translation})</span>
+                `;
+                btn.onclick = () => checkAnswer(opt.id === currentFruit.id, btn);
+                container.appendChild(btn);
+            });
+
+            // Jalankan Timer 10 Detik
+            startTimer();
+        }
+
+        // Pengucapan Suara Bahasa Inggris (Web Speech API)
+        function speakFruitName() {
+            if ('speechSynthesis' in window) {
+                const currentFruit = questions[currentQuestionIndex];
+                const utterance = new SpeechSynthesisUtterance(currentFruit.name);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85; // Bicara sedikit lebih lambat untuk anak kelas 2
+                window.speechSynthesis.cancel(); // Hentikan ucapan sebelumnya jika ada
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Timer 10 Detik
+        function startTimer() {
+            clearInterval(timer);
+            timeLeft = 10;
+            updateTimerUI();
+
+            timer = setInterval(() => {
+                timeLeft--;
+                updateTimerUI();
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    // Waktu Habis -> Lanjut ke soal berikutnya tanpa poin
+                    playTone(200, 'sawtooth', 0.3); // Suara tet tot
+                    highlightCorrectAnswer();
+                    setTimeout(() => {
+                        currentQuestionIndex++;
+                        loadQuestion();
+                    }, 1200);
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const timerBar = document.getElementById('timer-bar');
+            const timerText = document.getElementById('timer-text');
+            
+            const percentage = (timeLeft / 10) * 100;
+            timerBar.style.width = `${percentage}%`;
+            timerText.textContent = `${timeLeft} Detik`;
+
+            if (timeLeft <= 3) {
+                timerBar.className = "bg-red-600 h-full transition-all duration-1000 ease-linear timer-warning";
+            } else {
+                timerBar.className = "bg-red-500 h-full transition-all duration-1000 ease-linear";
+            }
+        }
+
+        // Pengecekan Jawaban
+        function checkAnswer(isCorrect, buttonElement) {
+            clearInterval(timer);
+
+            // Nonaktifkan semua tombol setelah memilih
+            const buttons = document.querySelectorAll('#options-container button');
+            buttons.forEach(b => b.disabled = true);
+
+            if (isCorrect) {
+                // Hitung Skor: Base 100 Poin + Sisa Waktu x 10 Bonus
+                const points = 100 + (timeLeft * 10);
+                score += points;
+                correctCount++;
+
+                buttonElement.classList.remove('bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-amber-500');
+                buttonElement.classList.add('bg-green-500', 'border-green-700', 'scale-105');
+                playTone(600, 'sine', 0.2); // Sound efek benar
+            } else {
+                buttonElement.classList.remove('bg-blue-500', 'bg-purple-500', 'bg-pink-500', 'bg-amber-500');
+                buttonElement.classList.add('bg-red-500', 'border-red-700');
+                playTone(200, 'sawtooth', 0.3); // Sound efek salah
+
+                highlightCorrectAnswer();
+            }
+
+            setTimeout(() => {
+                currentQuestionIndex++;
+                loadQuestion();
+            }, 1200);
+        }
+
+        // Tunjukkan pilihan yang benar jika siswa menjawab salah/waktu habis
+        function highlightCorrectAnswer() {
+            const currentFruit = questions[currentQuestionIndex];
+            const buttons = document.querySelectorAll('#options-container button');
+            buttons.forEach(btn => {
+                if (btn.innerText.includes(currentFruit.name)) {
+                    btn.classList.add('ring-4', 'ring-yellow-400', 'animate-pulse');
+                }
+            });
+        }
+
+        // Selesai Game
+        function endGame() {
+            clearInterval(timer);
+
+            // Simpan Data Skor ke Papan Skor
+            const record = {
+                name: playerName,
+                mode: currentMode,
+                score: score,
+                correct: correctCount,
+                date: new Date().toLocaleDateString('id-ID')
+            };
+
+            leaderboardData.push(record);
+            localStorage.setItem('fruit_game_scores', JSON.stringify(leaderboardData));
+
+            // Tampilkan Layar Hasil
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.remove('hidden');
+
+            document.getElementById('result-player-name').textContent = `${playerName} (${currentMode === 'individu' ? 'Individu' : 'Kelompok'})`;
+            document.getElementById('result-correct').textContent = `${correctCount} / ${questions.length}`;
+            document.getElementById('result-score').textContent = score;
+
+            // Jalankan efek selebrasi confetti jika skor bagus (> 10 benar)
+            if (correctCount >= 10 && typeof confetti === 'function') {
+                confetti({
+                    particleCount: 100,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+        }
+
+        // Tampilkan Papan Skor
+        function showLeaderboard() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('game-screen').classList.add('hidden');
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.remove('hidden');
+
+            filterLeaderboard(currentLeaderboardTab);
+        }
+
+        function filterLeaderboard(mode) {
+            currentLeaderboardTab = mode;
+            const tabInd = document.getElementById('tab-ind');
+            const tabKel = document.getElementById('tab-kel');
+
+            if (mode === 'individu') {
+                tabInd.className = "flex-1 py-2 rounded-xl font-bold border-2 border-green-500 bg-green-500 text-white";
+                tabKel.className = "flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-100 text-gray-600";
+            } else {
+                tabKel.className = "flex-1 py-2 rounded-xl font-bold border-2 border-purple-500 bg-purple-500 text-white";
+                tabInd.className = "flex-1 py-2 rounded-xl font-bold border-2 border-gray-200 bg-gray-100 text-gray-600";
+            }
+
+            // Filter & Sortir berdasarkan Skor Tertinggi
+            const filtered = leaderboardData
+                .filter(item => item.mode === mode)
+                .sort((a, b) => b.score - a.score);
+
+            const tbody = document.getElementById('leaderboard-body');
+            tbody.innerHTML = '';
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-400 font-normal">Belum ada skor tercatat.</td></tr>`;
+                return;
+            }
+
+            filtered.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                let medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`;
+                
+                tr.innerHTML = `
+                    <td class="py-2.5 font-bold">${medal}</td>
+                    <td class="py-2.5 font-bold text-gray-800">${escapeHtml(item.name)}</td>
+                    <td class="py-2.5 text-center text-green-600">${item.correct}/20</td>
+                    <td class="py-2.5 text-right font-extrabold text-yellow-600">${item.score}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function clearLeaderboard() {
+            if (confirmModal("Apakah Ibu/Bapak Guru yakin ingin menghapus semua papan skor?")) {
+                leaderboardData = [];
+                localStorage.removeItem('fruit_game_scores');
+                filterLeaderboard(currentLeaderboardTab);
+            }
+        }
+
+        function backToStart() {
+            document.getElementById('leaderboard-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+        }
+
+        function resetGameToStart() {
+            document.getElementById('result-screen').classList.add('hidden');
+            document.getElementById('leaderboard-screen').classList.add('hidden');
+            document.getElementById('start-screen').classList.remove('hidden');
+            document.getElementById('player-name').value = '';
+        }
+
+        // Audio Generator Sederhana (Menggunakan Web Audio API)
+        function playTone(freq, type, duration) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, ctx.currentTime);
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + duration);
+            } catch(e) { /* ignore audio error */ }
+        }
+
+        // Custom Utility Modal pengganti Alert / Confirm standar
+        function alertCustom(message) {
+            const div = document.createElement('div');
+            div.className = "fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50";
+            div.innerHTML = `
+                <div class="bg-white rounded-2xl p-6 max-w-sm w-full text-center space-y-4 shadow-2xl border-4 border-yellow-400">
+                    <p class="text-lg font-bold text-gray-800">${message}</p>
+                    <button onclick="this.parentElement.parentElement.remove()" class="bg-yellow-400 hover:bg-yellow-500 text-green-900 font-bold py-2 px-6 rounded-xl">Oke!</button>
+                </div>
+            `;
+            document.body.appendChild(div);
+        }
+
+        function confirmModal(message) {
+            return window.confirm(message); // Aman digunakan jika dibutuhkan oleh guru saat reset
+        }
+
+        function escapeHtml(text) {
+            return text.replace(/[&<>"']/g, function(m) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]; });
+        }
+    </script>
+</body>
+</html>
